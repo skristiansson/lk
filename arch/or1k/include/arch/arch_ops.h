@@ -62,33 +62,22 @@ static inline int atomic_swap(volatile int *ptr, int val)
 	return __atomic_exchange_n(ptr, val, __ATOMIC_RELAXED);
 }
 
-#if 0
 static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval)
 {
-	int old;
-	int test;
+	__asm__ __volatile__(
+		"1:	l.lwa %0, 0(%1)		\n"
+		"	l.sfeq %0, %2		\n"
+		"	l.bnf 1f		\n"
+		"	 l.nop			\n"
+		"	l.swa 0(%1), %3		\n"
+		"	l.bnf 1b		\n"
+		"1:	 l.nop			\n"
+		: "=&r"(oldval)
+		: "r"(ptr), "r"(oldval), "r"(newval)
+		: "cc", "memory");
 
-	do {
-		__asm__ volatile(
-		    "ldrex	%[old], [%[ptr]]\n"
-		    "mov	%[test], #0\n"
-		    "teq	%[old], %[oldval]\n"
-#if ARM_ISA_ARMV7M
-		    "bne	0f\n"
-		    "strex	%[test], %[newval], [%[ptr]]\n"
-		    "0:\n"
-#else
-		    "strexeq %[test], %[newval], [%[ptr]]\n"
-#endif
-		    : [old]"=&r" (old), [test]"=&r" (test)
-		    : [ptr]"r" (ptr), [oldval]"Ir" (oldval), [newval]"r" (newval)
-		    : "cc");
-
-	} while (test != 0);
-
-	return old;
+	return oldval;
 }
-#endif
 
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;
