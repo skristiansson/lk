@@ -24,6 +24,12 @@
 
 #include <reg.h>
 
-#define TIMER_CLOCK_FREQ (50*1000000)
+/* timer */
+#define TIMER_CLOCK_FREQ	50000000
 
-#define MAX_INT 32
+/* uart */
+#define UART1_BASE		0x90000000
+#define UART1_CLOCK_FREQ	50000000
+
+/* interrupts */
+#define MAX_INT			32

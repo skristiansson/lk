@@ -24,17 +24,16 @@
 #include <reg.h>
 #include <dev/uart.h>
 #include <target/debugconfig.h>
-
-// SJK FIXME: move this
-#define OR1K_UART1_BASE 0x90000000
+#include <platform/or1ksim.h>
 
 struct uart_stat {
 	addr_t base;
+	uint32_t clk_freq;
 	uint shift;
 };
 
 static struct uart_stat uart[1] = {
-	{ OR1K_UART1_BASE, 0 },
+	{ UART1_BASE, UART1_CLOCK_FREQ, 0 },
 };
 
 static inline void write_uart_reg(int port, uint reg, unsigned char data)
@@ -116,13 +115,10 @@ static inline unsigned char read_uart_reg(int port, uint reg)
 #define MCRVAL (MCR_DTR | MCR_RTS)          /* RTS/DTR */
 #define FCRVAL (FCR_FIFO_EN | FCR_RXSR | FCR_TXSR)  /* Clear & enable FIFOs */
 
-// FIXME: this is not always true...
-#define V_NS16550_CLK            (50000000)  /* 50MHz */
-
 void uart_init_port(int port, uint baud)
 {
 	/* clear the tx & rx fifo and disable */
-	uint16_t baud_divisor = (V_NS16550_CLK / 16 / baud);
+	uint16_t baud_divisor = (uart[port].clk_freq / 16 / baud);
 
 	write_uart_reg(port, UART_IER, 0);
 	write_uart_reg(port, UART_LCR, LCR_BKSE | LCRVAL); // config mode A
