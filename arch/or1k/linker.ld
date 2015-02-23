@@ -86,6 +86,8 @@ INCLUDE "arch/shared_data_sections.ld"
 
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(4) {
+	KEEP(*(.bss.prebss.*))
+	. = ALIGN(4);
         __bss_start = .;
 
         /* read only small variables without initial value */

@@ -12,11 +12,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/exceptions.c \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/cache-ops.c \
-
-#	$(LOCAL_DIR)/ops.S \
-	$(LOCAL_DIR)/mmu.c \
-	$(LOCAL_DIR)/faults.c \
-	$(LOCAL_DIR)/descriptor.c
+	$(LOCAL_DIR)/mmu.c
 
 # set the default toolchain to or1k elf and set a #define
 ifndef TOOLCHAIN_PREFIX
@@ -33,8 +29,15 @@ ARCH_OPTFLAGS := -O2
 
 GLOBAL_LDFLAGS += -relax
 
+# we have a mmu
+WITH_KERNEL_VM=1
+
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
+
+GLOBAL_DEFINES += \
+	KERNEL_BASE=$(KERNEL_BASE) \
+	KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET)
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += \

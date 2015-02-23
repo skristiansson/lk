@@ -22,6 +22,7 @@
  */
 #include <asm.h>
 #include <arch/ops.h>
+#include <arch/or1k/mmu.h>
 
 #define RED_ZONE		128
 #define EXCEPTION_FRAME		(124 + RED_ZONE)
@@ -63,6 +64,20 @@
 	l.mfspr	r3, r0, OR1K_SPR_SYS_ESR_BASE	;\
 	l.sw	124(r1), r3
 
+/* clobbers r9 and rd, result will be in rd */
+#define get_va_to_pa_offs(rd) \
+	l.movhi	rd, hi(.+12)	;\
+	l.jal	.+8		;\
+	 l.ori	rd, rd, lo(.+4)	;\
+	l.sub	rd, rd, r9
+
+/* clobbers r9 and rd, result will be in rd */
+#define to_phys(sym, rd) \
+	get_va_to_pa_offs(rd)	;\
+	l.movhi	r9, hi(sym)	;\
+	l.ori	r9, r9, lo(sym)	;\
+	l.sub	rd, r9, rd
+
 .section ".vectors", "ax"
 .org 0x100
 .global _reset
@@ -80,7 +95,28 @@ _reset:
 	l.jal	unhandled_exception
 	 l.nop
 .org 0x500
+#if WITH_KERNEL_VM
+	l.sw	0(r0), r4
+	l.sw	4(r0), r9
+	get_va_to_pa_offs(r4)
+	l.sub	r1, r1, r4
+	l.lwz	r9, 4(r0)
+#endif
 	SAVE_REGS
+#if WITH_KERNEL_VM
+	l.add	r1, r1, r4
+	l.lwz	r4, 0(r0)
+
+	l.ori	r9, r0, 0x8679 /* enable dmmu and immu */
+	l.mtspr	r0, r9, OR1K_SPR_SYS_ESR_BASE
+
+	l.movhi	r9, hi(.+16)
+	l.ori	r9, r9, lo(.+12)
+	l.mtspr	r0, r9, OR1K_SPR_SYS_EPCR_ADDR(0)
+	l.rfe
+	l.sw	8(r1), r4
+#endif
+
 	l.jal	or1k_tick
 	 l.nop
 	l.j	return_from_exception
@@ -98,9 +134,99 @@ _reset:
 	l.j	return_from_exception
 	 l.nop
 .org 0x900
+dtlb_miss_handler:
+	l.sw	0(r0), r3
+	l.sw	4(r0), r4
+	l.sw	8(r0), r9
+
+	to_phys(or1k_kernel_translation_table, r3)
+	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r9, r9, 20
+	l.slli	r9, r9, 2
+	l.add	r3, r3, r9 /* index in translation table */
+	l.lwz	r3, 0(r3)
+	l.andi	r9, r3, OR1K_MMU_PG_V
+	l.sfnei	r9, OR1K_MMU_PG_V
+	l.bf	dfault
+	 l.srli	r9, r3, 20 /* mask out flags */
+	l.slli	r9, r9, 20
+	/* use bits [19:13] from EEAR */
+	l.mfspr	r3, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.movhi	r4, hi(0xfe000)
+	l.ori	r4, r4, lo(0xfe000)
+	l.and	r3, r3, r4
+	l.or	r9, r9, r3
+	/* FIXME: get those flags from the pagetable */
+	l.ori	r9, r9, OR1K_SPR_DMMU_DTLBW_TR_URE_MASK|OR1K_SPR_DMMU_DTLBW_TR_UWE_MASK|OR1K_SPR_DMMU_DTLBW_TR_SRE_MASK|OR1K_SPR_DMMU_DTLBW_TR_SWE_MASK
+	l.mfspr	r3, r0, OR1K_SPR_SYS_DMMUCFGR_ADDR
+	l.slli	r3, r3, 31-OR1K_SPR_SYS_DMMUCFGR_NTS_MSB
+	l.srli	r3, r3, 31-OR1K_SPR_SYS_DMMUCFGR_NTS_LSB
+	l.ori	r4, r0, 1
+	l.sll	r3, r4, r3
+	l.addi	r3, r3, -1
+	l.srli	r4, r9, 13
+	l.and	r3, r4, r3
+	l.mtspr	r3, r9, OR1K_SPR_DMMU_DTLBW_TR_ADDR(0,0)
+	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r9, r9, 13
+	l.slli	r9, r9, 13
+	l.ori	r9, r9, OR1K_MMU_PG_V
+	l.mtspr	r3, r9, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0,0)
+
+	l.lwz	r3, 0(r0)
+	l.lwz	r4, 4(r0)
+	l.lwz	r9, 8(r0)
+	l.rfe
+
+dfault:
 	l.jal	unhandled_exception
 	 l.nop
 .org 0xa00
+itlb_miss_handler:
+	l.sw	0(r0), r3
+	l.sw	4(r0), r4
+	l.sw	8(r0), r9
+
+	to_phys(or1k_kernel_translation_table, r3)
+	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r9, r9, 20
+	l.slli	r9, r9, 2
+	l.add	r3, r3, r9 /* index in translation table */
+	l.lwz	r3, 0(r3)
+	l.andi	r9, r3, OR1K_MMU_PG_V
+	l.sfnei	r9, OR1K_MMU_PG_V
+	l.bf	ifault
+	 l.srli	r9, r3, 20 /* mask out flags */
+	l.slli	r9, r9, 20
+	/* use bits [19:13] from EEAR */
+	l.mfspr	r3, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.movhi	r4, hi(0xfe000)
+	l.ori	r4, r4, lo(0xfe000)
+	l.and	r3, r3, r4
+	l.or	r9, r9, r3
+	/* FIXME: get those flags from the pagetable */
+	l.ori	r9, r9, OR1K_SPR_IMMU_ITLBW_TR_SXE_MASK|OR1K_SPR_IMMU_ITLBW_TR_UXE_MASK
+	l.mfspr	r3, r0, OR1K_SPR_SYS_IMMUCFGR_ADDR
+	l.slli	r3, r3, 31-OR1K_SPR_SYS_IMMUCFGR_NTS_MSB
+	l.srli	r3, r3, 31-OR1K_SPR_SYS_IMMUCFGR_NTS_LSB
+	l.ori	r4, r0, 1
+	l.sll	r3, r4, r3
+	l.addi	r3, r3, -1
+	l.srli	r4, r9, 13
+	l.and	r3, r4, r3
+	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_TR_ADDR(0,0)
+	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r9, r9, 13
+	l.slli	r9, r9, 13
+	l.ori	r9, r9, OR1K_MMU_PG_V
+	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0,0)
+
+	l.lwz	r3, 0(r0)
+	l.lwz	r4, 4(r0)
+	l.lwz	r9, 8(r0)
+	l.rfe
+
+ifault:
 	l.jal	unhandled_exception
 	 l.nop
 .org 0xb00
@@ -121,6 +247,74 @@ FUNCTION(start)
 	# set stack pointer to point at top of default stack
 	l.movhi	r1, hi(default_stack_top)
 	l.ori	r1, r1, lo(default_stack_top)
+
+#if WITH_KERNEL_VM
+	/* invalidate tlbs */
+	l.ori	r3, r0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0, 0)
+	l.ori	r4, r0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0, 0)
+	l.addi	r5,r0,128 /* Maximum number of sets */
+
+1:	l.mtspr	r3,r0,0x0
+	l.mtspr	r4,r0,0x0
+
+	l.addi	r3,r3,1
+	l.addi	r4,r4,1
+	l.sfeq	r5,r0
+	l.bnf	1b
+	 l.addi	r5,r5,-1
+
+	/* setup initial mappings */
+	get_va_to_pa_offs(r3)
+	l.movhi	r4, hi(or1k_kernel_translation_table)
+	l.ori	r4, r4, lo(or1k_kernel_translation_table)
+	l.sub	r4, r4, r3 /* to phys */
+	l.movhi	r5, hi(mmu_initial_mappings)
+	l.ori	r5, r5, lo(mmu_initial_mappings)
+	l.sub	r5, r5, r3 /* to phys */
+
+1:	l.lwz	r6, 0(r5) /* phys */
+	l.lwz	r7, 4(r5) /* virt */
+	l.lwz	r8, 8(r5) /* size */
+	l.lwz	r9, 12(r5) /* flags */
+	l.lwz	r10, 16(r5) /* name */
+	l.addi	r5, r5, 20
+
+	/* FIXME: 1 meg? */
+	l.srli	r6, r6, 20
+	l.srli	r7, r7, 20
+	l.srli	r8, r8, 20
+
+	l.sfeqi	r8, 0
+	l.bf	.Linitial_mapping_done
+	 l.nop
+
+2:	l.slli	r3, r7, 2
+	l.add	r3, r4, r3
+	l.slli	r10, r6, 20
+	l.ori	r10, r10, OR1K_MMU_PG_V
+	/* TODO: or in more flags into r10 before storing */
+	l.sw	0(r3), r10
+
+	l.addi	r6, r6, 1
+	l.addi	r8, r8, -1
+	l.sfeqi	r8, 0
+	l.bnf	2b
+	 l.addi	r7, r7, 1
+
+	l.j	1b
+	 l.nop
+.Linitial_mapping_done:
+
+	/* enable mmu */
+	l.mfspr	r3, r0, OR1K_SPR_SYS_SR_ADDR
+	l.ori	r3, r3, OR1K_SPR_SYS_SR_DME_MASK | OR1K_SPR_SYS_SR_IME_MASK
+	l.mtspr	r0, r3, OR1K_SPR_SYS_ESR_ADDR(0)
+	/* setup pc to use virtual addresses */
+	l.movhi	r3, hi(.+16)
+	l.ori	r3, r3, lo(.+12)
+	l.mtspr	r0, r3, OR1K_SPR_SYS_EPCR_ADDR(0)
+	l.rfe
+#endif
 
 	# invalidate and enable caches
 	l.jal	arch_invalidate_cache_all
