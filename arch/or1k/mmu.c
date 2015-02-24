@@ -36,23 +36,31 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
 	uint32_t pte = or1k_kernel_translation_table[index];
 	LTRACEF("pte 0x%lx\n", pte);
+	if (!(pte & OR1K_MMU_PG_PRESENT))
+		return ERR_NOT_FOUND;
+
 	if (paddr)
 		*paddr = pte & ~OR1K_MMU_FLAGS_MASK | vaddr & (SECTION_SIZE-1);
 	LTRACEF("paddr 0x%lx\n", *paddr);
 
-	/* SJK FIXME */
-	if (flags)
-		*flags = ARCH_MMU_FLAG_PERM_USER;
-
+	if (flags) {
+		*flags = 0;
+		if (pte & OR1K_MMU_PG_U)
+		    *flags |= ARCH_MMU_FLAG_PERM_USER;
+		if (!(pte & OR1K_MMU_PG_X))
+		    *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+		if (pte & OR1K_MMU_PG_CI)
+		    *flags |= ARCH_MMU_FLAG_UNCACHED;
+	}
 	return NO_ERROR;
 }
 
 int arch_mmu_unmap(vaddr_t vaddr, uint count)
 {
-	TRACE;
+	PANIC_UNIMPLEMENTED;
 }
 
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 {
-	TRACE;
+	PANIC_UNIMPLEMENTED;
 }

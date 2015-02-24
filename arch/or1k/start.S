@@ -145,19 +145,38 @@ dtlb_miss_handler:
 	l.slli	r9, r9, 2
 	l.add	r3, r3, r9 /* index in translation table */
 	l.lwz	r3, 0(r3)
-	l.andi	r9, r3, OR1K_MMU_PG_V
-	l.sfnei	r9, OR1K_MMU_PG_V
+	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
+	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	dfault
-	 l.srli	r9, r3, 20 /* mask out flags */
-	l.slli	r9, r9, 20
 	/* use bits [19:13] from EEAR */
-	l.mfspr	r3, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.movhi	r4, hi(0xfe000)
-	l.ori	r4, r4, lo(0xfe000)
-	l.and	r3, r3, r4
-	l.or	r9, r9, r3
-	/* FIXME: get those flags from the pagetable */
-	l.ori	r9, r9, OR1K_SPR_DMMU_DTLBW_TR_URE_MASK|OR1K_SPR_DMMU_DTLBW_TR_UWE_MASK|OR1K_SPR_DMMU_DTLBW_TR_SRE_MASK|OR1K_SPR_DMMU_DTLBW_TR_SWE_MASK
+	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r4, r4, 13
+	l.andi	r4, r4, 0x7f
+	l.slli	r4, r4, 13
+	l.or	r9, r3, r4
+
+	 l.ori	r3,r0,0xf351		/* sw emulation of dmmupr */
+	/*
+	 * fill DTLB TR register
+	 */
+	l.srli	r4,r9,4			/* get PP Index * 4 */
+	l.andi	r4,r4,0xc		/* mask everything but PPI (without X) (& 0b01100)*/
+	l.srl	r3,r3,r4		/* get protection bits from "dmmupr" */
+	/*
+	 * The protection bits are unconvienently the "wrong" way in DMMUPR
+	 * compared to DTLBR (UWE|URE|SWE|SRE vs SWE|SRE|UWE|URE), so we have
+	 * to swap their places...
+	 */
+	l.andi	r4,r3,0x3		/* SWE|SRE */
+	l.slli	r4,r4,8			/* 1:0 -> 9:8 */
+	l.andi	r3,r3,0xc		/* UWE|URE */
+	l.slli	r3,r3,4			/* 3:2 -> 7:6 */
+	l.or	r3,r3,r4
+
+	l.addi	r4,r0,0xffffe03f	/* protection bit mask */
+	l.and	r4,r9,r4		/* apply the mask */
+	l.or	r9,r4,r3		/* apply protection bits */
+
 	l.mfspr	r3, r0, OR1K_SPR_SYS_DMMUCFGR_ADDR
 	l.slli	r3, r3, 31-OR1K_SPR_SYS_DMMUCFGR_NTS_MSB
 	l.srli	r3, r3, 31-OR1K_SPR_SYS_DMMUCFGR_NTS_LSB
@@ -170,7 +189,7 @@ dtlb_miss_handler:
 	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
 	l.srli	r9, r9, 13
 	l.slli	r9, r9, 13
-	l.ori	r9, r9, OR1K_MMU_PG_V
+	l.ori	r9, r9, OR1K_SPR_DMMU_DTLBW_MR_V_MASK
 	l.mtspr	r3, r9, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0,0)
 
 	l.lwz	r3, 0(r0)
@@ -193,19 +212,26 @@ itlb_miss_handler:
 	l.slli	r9, r9, 2
 	l.add	r3, r3, r9 /* index in translation table */
 	l.lwz	r3, 0(r3)
-	l.andi	r9, r3, OR1K_MMU_PG_V
-	l.sfnei	r9, OR1K_MMU_PG_V
+	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
+	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	ifault
-	 l.srli	r9, r3, 20 /* mask out flags */
-	l.slli	r9, r9, 20
 	/* use bits [19:13] from EEAR */
-	l.mfspr	r3, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.movhi	r4, hi(0xfe000)
-	l.ori	r4, r4, lo(0xfe000)
-	l.and	r3, r3, r4
-	l.or	r9, r9, r3
-	/* FIXME: get those flags from the pagetable */
-	l.ori	r9, r9, OR1K_SPR_IMMU_ITLBW_TR_SXE_MASK|OR1K_SPR_IMMU_ITLBW_TR_UXE_MASK
+	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r4, r4, 13
+	l.andi	r4, r4, 0x7f
+	l.slli	r4, r4, 13
+	l.or	r9, r3, r4
+
+	l.ori	r3, r0, 0xd00		/* sw emulation of immupr */
+	l.srli	r4, r9, 5		/* get PP Index * 2 */
+	l.andi	r4, r4, 0xa		/* mask everything but PPI (without W) (& 0b1010)*/
+	l.srl	r3, r3, r4		/* get protection bits from "immupr" */
+	l.andi	r3, r3, 0x3		/* mask everything else out */
+	l.slli	r3, r3, 6		/* and put them in their spot */
+	l.addi	r4, r0, 0xffffe03f	/* protection bit mask */
+	l.and	r4, r9, r4		/* apply the mask */
+	l.or	r9, r4, r3		/* apply protection bits */
+
 	l.mfspr	r3, r0, OR1K_SPR_SYS_IMMUCFGR_ADDR
 	l.slli	r3, r3, 31-OR1K_SPR_SYS_IMMUCFGR_NTS_MSB
 	l.srli	r3, r3, 31-OR1K_SPR_SYS_IMMUCFGR_NTS_LSB
@@ -215,10 +241,11 @@ itlb_miss_handler:
 	l.srli	r4, r9, 13
 	l.and	r3, r4, r3
 	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_TR_ADDR(0,0)
+
 	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
 	l.srli	r9, r9, 13
 	l.slli	r9, r9, 13
-	l.ori	r9, r9, OR1K_MMU_PG_V
+	l.ori	r9, r9, OR1K_SPR_IMMU_ITLBW_MR_V_MASK
 	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0,0)
 
 	l.lwz	r3, 0(r0)
@@ -291,7 +318,7 @@ FUNCTION(start)
 2:	l.slli	r3, r7, 2
 	l.add	r3, r4, r3
 	l.slli	r10, r6, 20
-	l.ori	r10, r10, OR1K_MMU_PG_V
+	l.ori	r10, r10, OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_X | OR1K_MMU_PG_W
 	/* TODO: or in more flags into r10 before storing */
 	l.sw	0(r3), r10
 
