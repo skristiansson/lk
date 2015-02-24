@@ -64,6 +64,30 @@
 	l.mfspr	r3, r0, OR1K_SPR_SYS_ESR_BASE	;\
 	l.sw	124(r1), r3
 
+#if WITH_KERNEL_VM
+#define EXCEPTION_ENTRY \
+	l.sw	0(r0), r4					;\
+	l.sw	4(r0), r9					;\
+	get_va_to_pa_offs(r4)					;\
+	l.sub	r1, r1, r4					;\
+	l.lwz	r9, 4(r0)					;\
+	SAVE_REGS						;\
+	l.add	r1, r1, r4					;\
+	l.lwz	r4, 0(r0)					;\
+								;\
+	l.ori	r9, r0, 0x8679 /* enable dmmu and immu */	;\
+	l.mtspr	r0, r9, OR1K_SPR_SYS_ESR_BASE			;\
+								;\
+	l.movhi	r9, hi(.+16)					;\
+	l.ori	r9, r9, lo(.+12)				;\
+	l.mtspr	r0, r9, OR1K_SPR_SYS_EPCR_ADDR(0)		;\
+	l.rfe							;\
+	l.sw	8(r1), r4
+#else
+#define EXCEPTION_ENTRY \
+	SAVE_REGS
+#endif
+
 /* clobbers r9 and rd, result will be in rd */
 #define get_va_to_pa_offs(rd) \
 	l.movhi	rd, hi(.+12)	;\
@@ -95,28 +119,7 @@ _reset:
 	l.jal	unhandled_exception
 	 l.nop
 .org 0x500
-#if WITH_KERNEL_VM
-	l.sw	0(r0), r4
-	l.sw	4(r0), r9
-	get_va_to_pa_offs(r4)
-	l.sub	r1, r1, r4
-	l.lwz	r9, 4(r0)
-#endif
-	SAVE_REGS
-#if WITH_KERNEL_VM
-	l.add	r1, r1, r4
-	l.lwz	r4, 0(r0)
-
-	l.ori	r9, r0, 0x8679 /* enable dmmu and immu */
-	l.mtspr	r0, r9, OR1K_SPR_SYS_ESR_BASE
-
-	l.movhi	r9, hi(.+16)
-	l.ori	r9, r9, lo(.+12)
-	l.mtspr	r0, r9, OR1K_SPR_SYS_EPCR_ADDR(0)
-	l.rfe
-	l.sw	8(r1), r4
-#endif
-
+	EXCEPTION_ENTRY
 	l.jal	or1k_tick
 	 l.nop
 	l.j	return_from_exception
@@ -128,7 +131,7 @@ _reset:
 	l.jal	unhandled_exception
 	 l.nop
 .org 0x800
-	SAVE_REGS
+	EXCEPTION_ENTRY
 	l.jal	or1k_irq
 	 l.nop
 	l.j	return_from_exception
