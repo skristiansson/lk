@@ -156,9 +156,6 @@ dtlb_miss_handler:
 	l.or	r9, r3, r4
 
 	 l.ori	r3,r0,0xf351		/* sw emulation of dmmupr */
-	/*
-	 * fill DTLB TR register
-	 */
 	l.srli	r4,r9,4			/* get PP Index * 4 */
 	l.andi	r4,r4,0xc		/* mask everything but PPI (without X) (& 0b01100)*/
 	l.srl	r3,r3,r4		/* get protection bits from "dmmupr" */
@@ -271,7 +268,7 @@ ifault:
 
 .section ".text.boot"
 FUNCTION(start)
-	# set stack pointer to point at top of default stack
+	/* set stack pointer to point at top of default stack */
 	l.movhi	r1, hi(default_stack_top)
 	l.ori	r1, r1, lo(default_stack_top)
 
@@ -343,13 +340,13 @@ FUNCTION(start)
 	l.rfe
 #endif
 
-	# invalidate and enable caches
+	/* invalidate and enable caches */
 	l.jal	arch_invalidate_cache_all
 	 l.nop
 	l.jal	arch_enable_cache
 	 l.ori	r3, r0, UCACHE
 
-	# clear bss
+	/* clear bss */
 	l.movhi	r3, hi(__bss_start)
 	l.ori	r3, r3, lo(__bss_start)
 	l.movhi	r4, hi(__bss_end)
@@ -359,14 +356,14 @@ FUNCTION(start)
 	l.bf	1b
 	 l.addi	r3, r3, 4
 
-	# arguments to main
+	/* arguments to main */
 	l.ori	r3, r0, 1
 	l.ori	r4, r0, 2
 	l.ori	r5, r0, 3
 	l.jal	lk_main
 	 l.ori	r6, r0, 4
 
-	# shouldn't happen, but loop if it does
+	/* shouldn't happen, but loop if it does */
 	l.j	0
 	 l.nop
 
@@ -409,10 +406,10 @@ FUNCTION(return_from_exception)
 	l.rfe
 
 FUNCTION(unhandled_exception)
-	# report epcr
+	/* report epcr */
 	l.mfspr	r3, r0, OR1K_SPR_SYS_EPCR_BASE
 	l.nop	0x2
-	# report vector
+	/* report vector */
 	l.ori	r3, r9, 0
 	l.nop	0x2
 	l.nop	0x1
