@@ -23,6 +23,7 @@
 #include <asm.h>
 #include <arch/ops.h>
 #include <arch/or1k/mmu.h>
+#include <kernel/vm.h>
 
 #define RED_ZONE		128
 #define EXCEPTION_FRAME		(124 + RED_ZONE)
@@ -299,6 +300,13 @@ FUNCTION(start)
 	l.ori	r5, r5, lo(mmu_initial_mappings)
 	l.sub	r5, r5, r3 /* to phys */
 
+	/* clear the translation table */
+	l.addi	r3, r4, (4096-1)*4
+0:	l.sw	0(r3), r0
+	l.sfeq	r3, r4
+	l.bnf	0b
+	 l.addi	r3, r3, -4
+
 1:	l.lwz	r6, 0(r5) /* phys */
 	l.lwz	r7, 4(r5) /* virt */
 	l.lwz	r8, 8(r5) /* size */
@@ -319,8 +327,13 @@ FUNCTION(start)
 	l.add	r3, r4, r3
 	l.slli	r10, r6, 20
 	l.ori	r10, r10, OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_X | OR1K_MMU_PG_W
-	/* TODO: or in more flags into r10 before storing */
-	l.sw	0(r3), r10
+	l.sfeqi	r9, MMU_INITIAL_MAPPING_FLAG_UNCACHED
+	l.bf	3f
+	 l.sfeqi r9, MMU_INITIAL_MAPPING_FLAG_DEVICE
+	l.bnf	4f
+	 l.nop
+3:	l.ori	r10, r10, OR1K_MMU_PG_CI
+4:	l.sw	0(r3), r10
 
 	l.addi	r6, r6, 1
 	l.addi	r8, r8, -1
