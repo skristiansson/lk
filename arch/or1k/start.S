@@ -145,17 +145,17 @@ dtlb_miss_handler:
 
 	to_phys(or1k_kernel_translation_table, r3)
 	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 20
+	l.srli	r9, r9, 24
 	l.slli	r9, r9, 2
 	l.add	r3, r3, r9 /* index in translation table */
 	l.lwz	r3, 0(r3)
 	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
 	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	dfault
-	/* use bits [19:13] from EEAR */
+	/* use bits [23:13] from EEAR */
 	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
 	l.srli	r4, r4, 13
-	l.andi	r4, r4, 0x7f
+	l.andi	r4, r4, 0x7ff
 	l.slli	r4, r4, 13
 	l.or	r9, r3, r4
 
@@ -209,17 +209,17 @@ itlb_miss_handler:
 
 	to_phys(or1k_kernel_translation_table, r3)
 	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 20
+	l.srli	r9, r9, 24
 	l.slli	r9, r9, 2
 	l.add	r3, r3, r9 /* index in translation table */
 	l.lwz	r3, 0(r3)
 	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
 	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	ifault
-	/* use bits [19:13] from EEAR */
+	/* use bits [23:13] from EEAR */
 	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
 	l.srli	r4, r4, 13
-	l.andi	r4, r4, 0x7f
+	l.andi	r4, r4, 0x7ff
 	l.slli	r4, r4, 13
 	l.or	r9, r3, r4
 
@@ -301,7 +301,7 @@ FUNCTION(start)
 	l.sub	r5, r5, r3 /* to phys */
 
 	/* clear the translation table */
-	l.addi	r3, r4, (4096-1)*4
+	l.addi	r3, r4, 255*4
 0:	l.sw	0(r3), r0
 	l.sfeq	r3, r4
 	l.bnf	0b
@@ -314,10 +314,10 @@ FUNCTION(start)
 	l.lwz	r10, 16(r5) /* name */
 	l.addi	r5, r5, 20
 
-	/* FIXME: 1 meg? */
-	l.srli	r6, r6, 20
-	l.srli	r7, r7, 20
-	l.srli	r8, r8, 20
+	/* divide with 16MB */
+	l.srli	r6, r6, 24
+	l.srli	r7, r7, 24
+	l.srli	r8, r8, 24
 
 	l.sfeqi	r8, 0
 	l.bf	.Linitial_mapping_done
@@ -325,8 +325,8 @@ FUNCTION(start)
 
 2:	l.slli	r3, r7, 2
 	l.add	r3, r4, r3
-	l.slli	r10, r6, 20
-	l.ori	r10, r10, OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_X | OR1K_MMU_PG_W
+	l.slli	r10, r6, 24
+	l.ori	r10, r10, OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_X | OR1K_MMU_PG_W | OR1K_MMU_PG_L
 	l.sfeqi	r9, MMU_INITIAL_MAPPING_FLAG_UNCACHED
 	l.bf	3f
 	 l.sfeqi r9, MMU_INITIAL_MAPPING_FLAG_DEVICE

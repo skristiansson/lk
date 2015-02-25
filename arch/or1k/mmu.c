@@ -27,7 +27,7 @@
 
 #define LOCAL_TRACE 1
 
-uint32_t or1k_kernel_translation_table[4096] __ALIGNED(8192) __SECTION(".bss.prebss.translation_table");
+uint32_t or1k_kernel_translation_table[256] __ALIGNED(8192) __SECTION(".bss.prebss.translation_table");
 
 status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 {
@@ -40,7 +40,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 		return ERR_NOT_FOUND;
 
 	if (paddr)
-		*paddr = pte & ~OR1K_MMU_FLAGS_MASK | vaddr & (SECTION_SIZE-1);
+		*paddr = pte & ~OR1K_MMU_PG_FLAGS_MASK | vaddr & (SECTION_SIZE-1);
 	LTRACEF("paddr 0x%lx\n", *paddr);
 
 	if (flags) {
