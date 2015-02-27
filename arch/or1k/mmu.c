@@ -102,18 +102,22 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 			mapped += SECTION_SIZE / PAGE_SIZE;
 			vaddr += SECTION_SIZE;
 			paddr += SECTION_SIZE;
+			continue;
+		}
+
+		uint32_t *l2_table;
+
+		pte = or1k_kernel_translation_table[l1_index];
+
+		/* FIXME: l1 already mapped as a section */
+		if (pte & OR1K_MMU_PG_PRESENT && pte & OR1K_MMU_PG_L)
+			PANIC_UNIMPLEMENTED;
+
+		if (pte & OR1K_MMU_PG_PRESENT) {
+			l2_table = paddr_to_kvaddr(pte & ~OR1K_MMU_PG_FLAGS_MASK);
+			LTRACEF("l2_table at %p\n", l2_table);
 		} else {
-			pte = or1k_kernel_translation_table[l1_index];
-			LTRACEF("pte 0x%x\n", pte);
-
-			/* FIXME: l1 already mapped as a section */
-			if (pte & OR1K_MMU_PG_PRESENT && pte & OR1K_MMU_PG_L)
-				PANIC_UNIMPLEMENTED;
-
-			if (pte & OR1K_MMU_PG_PRESENT)
-				PANIC_UNIMPLEMENTED; /*SJK FIXME*/
-
-			uint32_t *l2_table = pmm_alloc_kpage();
+			l2_table = pmm_alloc_kpage();
 			if (!l2_table) {
 				TRACEF("failed to allocate pagetable\n");
 				return mapped;
@@ -122,19 +126,18 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 			memset(l2_table, 0, PAGE_SIZE);
 			paddr_t l2_pa = kvaddr_to_paddr(l2_table);
 			LTRACEF("allocated pagetable at %p, pa 0x%lx\n", l2_table, l2_pa);
-
-			or1k_kernel_translation_table[l1_index] = l2_pa | arch_flags | OR1K_MMU_PG_PRESENT;
-
-			uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
-
-			LTRACEF("l2_index = 0x%x, vaddr = 0x%x, paddr = 0x%x\n", l2_index, vaddr, paddr);
-			l2_table[l2_index] = paddr | arch_flags | OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_L;
-
-			count--;
-			mapped++;
-			vaddr += PAGE_SIZE;
-			paddr += PAGE_SIZE;
+			or1k_kernel_translation_table[l1_index] = l2_pa | arch_flags | OR1K_MMU_PG_PRESENT;;
 		}
+
+		uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
+
+		LTRACEF("l2_index = 0x%x, vaddr = 0x%x, paddr = 0x%x\n", l2_index, vaddr, paddr);
+		l2_table[l2_index] = paddr | arch_flags | OR1K_MMU_PG_PRESENT | OR1K_MMU_PG_L;
+
+		count--;
+		mapped++;
+		vaddr += PAGE_SIZE;
+		paddr += PAGE_SIZE;
 	}
 
 	return mapped;
