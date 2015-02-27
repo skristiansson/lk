@@ -47,7 +47,6 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 		uint32_t *l2_table = paddr_to_kvaddr(pte & ~OR1K_MMU_PG_FLAGS_MASK);
 		index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
 		pte = l2_table[index];
-		LTRACEF("pte = 0x%0x\n", pte);
 		vmask = PAGE_SIZE-1;
 	}
 
