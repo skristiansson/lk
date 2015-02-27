@@ -26,12 +26,45 @@
 #include <err.h>
 #include <string.h>
 #include <arch/mmu.h>
+#include <arch/or1k.h>
 #include <arch/or1k/mmu.h>
 #include <kernel/vm.h>
 
 #define LOCAL_TRACE 1
 
 uint32_t or1k_kernel_translation_table[256] __ALIGNED(8192) __SECTION(".bss.prebss.translation_table");
+
+/* Pessimistic tlb invalidation, which rather invalidate too much.
+ * TODO: make it more precise. */
+void or1k_invalidate_tlb(vaddr_t vaddr, uint count)
+{
+	uint32_t dmmucfgr = mfspr(OR1K_SPR_SYS_DMMUCFGR_ADDR);
+	uint32_t immucfgr = mfspr(OR1K_SPR_SYS_IMMUCFGR_ADDR);
+	uint32_t num_dtlb_ways = OR1K_SPR_SYS_DMMUCFGR_NTW_GET(dmmucfgr) + 1;
+	uint32_t num_dtlb_sets = 1 << OR1K_SPR_SYS_DMMUCFGR_NTS_GET(dmmucfgr);
+	uint32_t num_itlb_ways = OR1K_SPR_SYS_IMMUCFGR_NTW_GET(immucfgr) + 1;
+	uint32_t num_itlb_sets = 1 << OR1K_SPR_SYS_IMMUCFGR_NTS_GET(immucfgr);
+	uint32_t offs;
+
+	for (; count; count--) {
+		offs = (vaddr >> PAGE_SIZE_SHIFT) & (num_dtlb_sets-1);
+		switch (num_dtlb_ways) {
+		case 4: mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(3, offs), 0);
+		case 3: mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(2, offs), 0);
+		case 2: mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(1, offs), 0);
+		case 1: mtspr_off(0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0, offs), 0);
+		}
+
+		offs = (vaddr >> PAGE_SIZE_SHIFT) & (num_itlb_sets-1);
+		switch (num_itlb_ways) {
+		case 4: mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(3, offs), 0);
+		case 3: mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(2, offs), 0);
+		case 2: mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(1, offs), 0);
+		case 1: mtspr_off(0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0, offs), 0);
+		}
+		vaddr += PAGE_SIZE;
+	}
+}
 
 status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 {
@@ -70,7 +103,32 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 
 int arch_mmu_unmap(vaddr_t vaddr, uint count)
 {
-	PANIC_UNIMPLEMENTED;
+	LTRACEF("vaddr = 0x%x, count = %d\n", vaddr, count);
+
+	if (!IS_PAGE_ALIGNED(vaddr))
+		return ERR_INVALID_ARGS;
+
+	uint unmapped = 0;
+	while (count) {
+		uint index = vaddr / SECTION_SIZE;
+		uint32_t pte = or1k_kernel_translation_table[index];
+		if (!(pte & OR1K_MMU_PG_PRESENT)) {
+			vaddr += PAGE_SIZE;
+			count--;
+			continue;
+		}
+		/* Unmapping of l2 tables is not implemented (yet) */
+		if (!(pte & OR1K_MMU_PG_L) || !IS_ALIGNED(vaddr, SECTION_SIZE) || count < SECTION_SIZE / PAGE_SIZE)
+			PANIC_UNIMPLEMENTED;
+
+		or1k_kernel_translation_table[index] = 0;
+		or1k_invalidate_tlb(vaddr, SECTION_SIZE / PAGE_SIZE);
+		vaddr += SECTION_SIZE;
+		count -= SECTION_SIZE / PAGE_SIZE;
+		unmapped += SECTION_SIZE / PAGE_SIZE;
+	}
+
+	return unmapped;
 }
 
 int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
