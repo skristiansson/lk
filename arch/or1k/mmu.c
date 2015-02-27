@@ -37,6 +37,7 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 {
 	uint index = vaddr / SECTION_SIZE;
 	uint32_t pte = or1k_kernel_translation_table[index];
+	uint32_t vmask = SECTION_SIZE-1;
 
 	if (!(pte & OR1K_MMU_PG_PRESENT))
 		return ERR_NOT_FOUND;
@@ -47,10 +48,11 @@ status_t arch_mmu_query(vaddr_t vaddr, paddr_t *paddr, uint *flags)
 		index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
 		pte = l2_table[index];
 		LTRACEF("pte = 0x%0x\n", pte);
+		vmask = PAGE_SIZE-1;
 	}
 
 	if (paddr)
-		*paddr = (pte & ~OR1K_MMU_PG_FLAGS_MASK) | (vaddr & (SECTION_SIZE-1));
+		*paddr = (pte & ~OR1K_MMU_PG_FLAGS_MASK) | (vaddr & vmask);
 
 	if (flags) {
 		*flags = 0;
@@ -119,10 +121,7 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 			}
 
 			memset(l2_table, 0, PAGE_SIZE);
-			paddr_t l2_pa = 0;
-			if (or1k_tophys((vaddr_t)l2_table, &l2_pa) == ERR_NOT_FOUND)
-				panic("failed to get phys addr of l2_table\n");
-
+			paddr_t l2_pa = kvaddr_to_paddr(l2_table);
 			LTRACEF("allocated pagetable at %p, pa 0x%lx\n", l2_table, l2_pa);
 
 			or1k_kernel_translation_table[l1_index] = l2_pa | arch_flags | OR1K_MMU_PG_PRESENT;

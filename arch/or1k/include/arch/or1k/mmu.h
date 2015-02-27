@@ -35,7 +35,3 @@
 #define OR1K_MMU_PG_WBC		0x004
 #define OR1K_MMU_PG_CI		0x002
 #define OR1K_MMU_PG_CC		0x001
-
-#ifndef ASSEMBLY
-status_t or1k_tophys(addr_t va, addr_t *pa);
-#endif
