@@ -30,7 +30,7 @@
 #include <arch/or1k/mmu.h>
 #include <kernel/vm.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 uint32_t or1k_kernel_translation_table[256] __ALIGNED(8192) __SECTION(".bss.prebss.translation_table");
 
