@@ -31,6 +31,13 @@
 		: "K" (_spr), "r" (_val)		\
 	)
 
+#define mtspr_off(_spr, _off, _val)			\
+	__asm__ __volatile__ (				\
+		"l.mtspr %0,%1,%2"			\
+		:					\
+		: "r" (_off), "r" (_val), "K" (_spr)	\
+	)
+
 #define mfspr(_spr)					\
 ({							\
 	uint32_t _val;					\
@@ -38,6 +45,17 @@
 		"l.mfspr %0, r0, %1"			\
 		: "=r"(_val)				\
 		: "K" (_spr)				\
+		);					\
+	_val;						\
+})
+
+#define mfspr_off(_spr, _off)				\
+({							\
+	uint32_t _val;					\
+	__asm__ __volatile__ (				\
+		"l.mfspr %0,%1,%2"			\
+		: "=r" (_val)				\
+		: "r" (_off), "K" (_spr)		\
 		);					\
 	_val;						\
 })

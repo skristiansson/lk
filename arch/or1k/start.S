@@ -144,22 +144,36 @@ dtlb_miss_handler:
 	l.sw	8(r0), r9
 
 	to_phys(or1k_kernel_translation_table, r3)
-	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 24
+	l.mfspr	r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	/* l1 index */
+	l.srli	r9, r4, 24
 	l.slli	r9, r9, 2
-	l.add	r3, r3, r9 /* index in translation table */
-	l.lwz	r3, 0(r3)
+
+	l.add	r3, r3, r9
+
+	l.lwz	r3, 0(r3) /* l1 entry */
 	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
 	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	dfault
-	/* use bits [23:13] from EEAR */
-	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	 l.andi	r9, r3, OR1K_MMU_PG_L
+
+	l.sfeqi	r9, OR1K_MMU_PG_L
+	/* l2_index */
 	l.srli	r4, r4, 13
-	l.andi	r4, r4, 0x7ff
-	l.slli	r4, r4, 13
+	l.bf	1f
+	 l.andi	r4, r4, 0x7ff
+	l.slli	r4, r4, 2
+	l.addi	r9, r0, 0xffffe000 /* PAGE_SIZE-1 */
+	l.and	r9, r3, r9
+	l.add	r9, r9, r4
+	l.j	2f
+	 l.lwz	r9, 0(r9) /* l2 entry */
+
+	/* use bits [23:13] from EEAR */
+1:	l.slli	r4, r4, 13
 	l.or	r9, r3, r4
 
-	 l.ori	r3,r0,0xf351		/* sw emulation of dmmupr */
+2:	l.ori	r3,r0,0xf351		/* sw emulation of dmmupr */
 	l.srli	r4,r9,4			/* get PP Index * 4 */
 	l.andi	r4,r4,0xc		/* mask everything but PPI (without X) (& 0b01100)*/
 	l.srl	r3,r3,r4		/* get protection bits from "dmmupr" */
@@ -184,14 +198,13 @@ dtlb_miss_handler:
 	l.ori	r4, r0, 1
 	l.sll	r3, r4, r3
 	l.addi	r3, r3, -1
-	l.srli	r4, r9, 13
+	l.mfspr	r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r4, r4, 13
 	l.and	r3, r4, r3
 	l.mtspr	r3, r9, OR1K_SPR_DMMU_DTLBW_TR_ADDR(0,0)
-	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 13
-	l.slli	r9, r9, 13
-	l.ori	r9, r9, OR1K_SPR_DMMU_DTLBW_MR_V_MASK
-	l.mtspr	r3, r9, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0,0)
+	l.slli	r4, r4, 13
+	l.ori	r4, r4, OR1K_SPR_DMMU_DTLBW_MR_V_MASK
+	l.mtspr	r3, r4, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0,0)
 
 	l.lwz	r3, 0(r0)
 	l.lwz	r4, 4(r0)
@@ -208,22 +221,37 @@ itlb_miss_handler:
 	l.sw	8(r0), r9
 
 	to_phys(or1k_kernel_translation_table, r3)
-	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 24
+	l.mfspr	r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	/* l1 index */
+	l.srli	r9, r4, 24
 	l.slli	r9, r9, 2
-	l.add	r3, r3, r9 /* index in translation table */
-	l.lwz	r3, 0(r3)
+
+	l.add	r3, r3, r9
+	l.lwz	r3, 0(r3) /* l1 entry */
+
 	l.andi	r9, r3, OR1K_MMU_PG_PRESENT
 	l.sfnei	r9, OR1K_MMU_PG_PRESENT
 	l.bf	ifault
-	/* use bits [23:13] from EEAR */
-	 l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	 l.andi	r9, r3, OR1K_MMU_PG_L
+	l.sfeqi	r9, OR1K_MMU_PG_L
+	/* l2 index */
 	l.srli	r4, r4, 13
 	l.andi	r4, r4, 0x7ff
-	l.slli	r4, r4, 13
+	l.bf	1f
+	 l.andi	r4, r4, 0x7ff
+
+	l.slli	r4, r4, 2
+	l.addi	r9, r0, 0xffffe000 /* PAGE_SIZE-1 */
+	l.and	r9, r3, r9
+	l.add	r9, r9, r4
+	l.j	2f
+	 l.lwz	r9, 0(r9) /* l2 entry */
+
+	/* use bits [23:13] from EEAR */
+1:	l.slli	r4, r4, 13
 	l.or	r9, r3, r4
 
-	l.ori	r3, r0, 0xd00		/* sw emulation of immupr */
+2:	l.ori	r3, r0, 0xd00		/* sw emulation of immupr */
 	l.srli	r4, r9, 5		/* get PP Index * 2 */
 	l.andi	r4, r4, 0xa		/* mask everything but PPI (without W) (& 0b1010)*/
 	l.srl	r3, r3, r4		/* get protection bits from "immupr" */
@@ -239,15 +267,14 @@ itlb_miss_handler:
 	l.ori	r4, r0, 1
 	l.sll	r3, r4, r3
 	l.addi	r3, r3, -1
-	l.srli	r4, r9, 13
+	l.mfspr	r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+	l.srli	r4, r4, 13
 	l.and	r3, r4, r3
 	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_TR_ADDR(0,0)
 
-	l.mfspr	r9, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
-	l.srli	r9, r9, 13
-	l.slli	r9, r9, 13
-	l.ori	r9, r9, OR1K_SPR_IMMU_ITLBW_MR_V_MASK
-	l.mtspr	r3, r9, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0,0)
+	l.slli	r4, r4, 13
+	l.ori	r4, r4, OR1K_SPR_IMMU_ITLBW_MR_V_MASK
+	l.mtspr	r3, r4, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0,0)
 
 	l.lwz	r3, 0(r0)
 	l.lwz	r4, 4(r0)
