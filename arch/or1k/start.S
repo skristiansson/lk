@@ -137,7 +137,9 @@ _reset:
 	 l.nop
 	l.j	return_from_exception
 	 l.nop
+
 .org 0x900
+#if WITH_KERNEL_VM
 dtlb_miss_handler:
 	l.sw	0(r0), r3
 	l.sw	4(r0), r4
@@ -210,11 +212,14 @@ dtlb_miss_handler:
 	l.lwz	r4, 4(r0)
 	l.lwz	r9, 8(r0)
 	l.rfe
+#endif /* WITH_KERNEL_VM */
 
 dfault:
 	l.jal	unhandled_exception
 	 l.nop
+
 .org 0xa00
+#if WITH_KERNEL_VM
 itlb_miss_handler:
 	l.sw	0(r0), r3
 	l.sw	4(r0), r4
@@ -279,10 +284,12 @@ itlb_miss_handler:
 	l.lwz	r4, 4(r0)
 	l.lwz	r9, 8(r0)
 	l.rfe
+#endif /* WITH_KERNEL_VM */
 
 ifault:
 	l.jal	unhandled_exception
 	 l.nop
+
 .org 0xb00
 	l.jal	unhandled_exception
 	 l.nop

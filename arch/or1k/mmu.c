@@ -32,6 +32,8 @@
 
 #define LOCAL_TRACE 0
 
+#if WITH_KERNEL_VM
+
 uint32_t or1k_kernel_translation_table[256] __ALIGNED(8192) __SECTION(".bss.prebss.translation_table");
 
 /* Pessimistic tlb invalidation, which rather invalidate too much.
@@ -200,3 +202,5 @@ int arch_mmu_map(vaddr_t vaddr, paddr_t paddr, uint count, uint flags)
 
 	return mapped;
 }
+
+#endif /* WITH_KERNEL_VM */
