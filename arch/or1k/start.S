@@ -236,7 +236,6 @@ itlb_miss_handler:
 	l.sfeqi	r9, OR1K_MMU_PG_L
 	/* l2 index */
 	l.srli	r4, r4, 13
-	l.andi	r4, r4, 0x7ff
 	l.bf	1f
 	 l.andi	r4, r4, 0x7ff
 
