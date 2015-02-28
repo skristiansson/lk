@@ -85,6 +85,7 @@ int platform_dgetc(char *c, bool wait)
 
 void platform_early_init(void)
 {
+	uart_init_early();
 	or1k_ticktimer_init(TIMER_CLOCK_FREQ);
 #if WITH_KERNEL_VM
 	pmm_add_arena(&ram_arena);

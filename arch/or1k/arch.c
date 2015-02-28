@@ -28,7 +28,6 @@
 
 void arch_early_init(void)
 {
-	TRACE;
 }
 
 void arch_init(void)

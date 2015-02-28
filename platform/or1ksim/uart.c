@@ -127,7 +127,6 @@ void uart_init_port(int port, uint baud)
 	write_uart_reg(port, UART_LCR, LCRVAL); // operational mode
 	write_uart_reg(port, UART_MCR, MCRVAL);
 	write_uart_reg(port, UART_FCR, FCRVAL);
-	write_uart_reg(port, UART_MDR1, 0); // UART 16x mode
 }
 
 void uart_init_early(void)
