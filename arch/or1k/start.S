@@ -307,16 +307,24 @@ FUNCTION(start)
 	/* invalidate tlbs */
 	l.ori	r3, r0, OR1K_SPR_DMMU_DTLBW_MR_ADDR(0, 0)
 	l.ori	r4, r0, OR1K_SPR_IMMU_ITLBW_MR_ADDR(0, 0)
-	l.addi	r5,r0,128 /* Maximum number of sets */
+	l.addi	r6, r0, 3 /* Maximum number of ways - 1 */
 
-1:	l.mtspr	r3,r0,0x0
-	l.mtspr	r4,r0,0x0
+1:	l.addi	r5, r0, 127 /* Maximum number of sets - 1 */
+2:	l.mtspr	r3, r0, 0x0
+	l.mtspr	r4, r0, 0x0
 
-	l.addi	r3,r3,1
-	l.addi	r4,r4,1
-	l.sfeq	r5,r0
+	l.addi	r3, r3, 1
+	l.addi	r4, r4, 1
+	l.sfeq	r5, r0
+	l.bnf	2b
+	 l.addi	r5, r5, -1
+
+	l.addi	r3, r3, 128
+	l.addi	r4, r4, 128
+
+	l.sfeq	r6, r0
 	l.bnf	1b
-	 l.addi	r5,r5,-1
+	 l.addi	r6, r6, -1
 
 	/* setup initial mappings */
 	get_va_to_pa_offs(r3)
