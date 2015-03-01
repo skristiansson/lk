@@ -35,7 +35,7 @@ static inline uint32_t dc_sets(void)
 {
 	uint32_t dccfgr = mfspr(OR1K_SPR_SYS_DCCFGR_ADDR);
 
-	return OR1K_SPR_SYS_DCCFGR_NCS_GET(dccfgr);
+	return 1 << OR1K_SPR_SYS_DCCFGR_NCS_GET(dccfgr);
 }
 
 static inline uint32_t ic_block_size(void)
@@ -49,17 +49,23 @@ static inline uint32_t ic_sets(void)
 {
 	uint32_t iccfgr = mfspr(OR1K_SPR_SYS_ICCFGR_ADDR);
 
-	return OR1K_SPR_SYS_ICCFGR_NCS_GET(iccfgr);
+	return 1 << OR1K_SPR_SYS_ICCFGR_NCS_GET(iccfgr);
 }
 
 void arch_invalidate_cache_all(void)
 {
 	uint32_t i;
+	uint32_t cache_size;
+	uint32_t block_size;
 
-	for (i = 0; i < ic_block_size()*ic_sets(); i += ic_block_size())
+	block_size = ic_block_size();
+	cache_size = block_size * ic_sets();
+	for (i = 0; i < cache_size; i += block_size)
 		mtspr(OR1K_SPR_ICACHE_ICBIR_ADDR, i);
 
-	for (i = 0; i < dc_block_size()*dc_sets(); i += dc_block_size())
+	block_size = dc_block_size();
+	cache_size = block_size * dc_sets();
+	for (i = 0; i < cache_size; i += block_size)
 		mtspr(OR1K_SPR_DCACHE_DCBIR_ADDR, i);
 }
 
