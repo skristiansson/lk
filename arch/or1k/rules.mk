@@ -29,9 +29,6 @@ ARCH_OPTFLAGS := -O2
 
 GLOBAL_LDFLAGS += -relax
 
-# we have a mmu
-WITH_KERNEL_VM=1
-
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
 
