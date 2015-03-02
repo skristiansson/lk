@@ -111,6 +111,7 @@ _reset:
 .org 0x200
     l.jal   unhandled_exception
      l.nop
+
 .org 0x300
     l.jal   unhandled_exception
      l.nop
@@ -193,7 +194,7 @@ dtlb_miss_handler:
     l.slli  r3,r3,4         /* 3:2 -> 7:6 */
     l.or    r3,r3,r4
 
-    l.addi  r4,r0,0xffffe03f    /* protection bit mask */
+    l.addi  r4,r0,0xffffe03f /* protection bit mask */
     l.and   r4,r9,r4        /* apply the mask */
     l.or    r9,r4,r3        /* apply protection bits */
 
@@ -258,13 +259,13 @@ itlb_miss_handler:
 1:  l.slli  r4, r4, 13
     l.or    r9, r3, r4
 
-2:  l.ori   r3, r0, 0xd00       /* sw emulation of immupr */
+2:  l.ori   r3, r0, 0xd00   /* sw emulation of immupr */
     l.srli  r4, r9, 5       /* get PP Index * 2 */
     l.andi  r4, r4, 0xa     /* mask everything but PPI (without W) (& 0b1010)*/
     l.srl   r3, r3, r4      /* get protection bits from "immupr" */
     l.andi  r3, r3, 0x3     /* mask everything else out */
     l.slli  r3, r3, 6       /* and put them in their spot */
-    l.addi  r4, r0, 0xffffe03f  /* protection bit mask */
+    l.addi  r4, r0, 0xffffe03f /* protection bit mask */
     l.and   r4, r9, r4      /* apply the mask */
     l.or    r9, r4, r3      /* apply protection bits */
 
@@ -425,7 +426,7 @@ FUNCTION(start)
     l.jal   lk_main
      l.ori  r6, r0, 4
 
-/* shouldn't happen, but loop if it does */
+    /* shouldn't happen, but loop if it does */
     l.j 0
      l.nop
 
