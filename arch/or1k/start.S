@@ -32,7 +32,7 @@
     l.addi  r1, r1, -EXCEPTION_FRAME        ;\
     l.sw    0(r1), r2                       ;\
     l.sw    4(r1), r3                       ;\
-    l.sw    8(r1), r4                       ;\
+    /* r4 saved later */                    ;\
     l.sw    12(r1), r5                      ;\
     l.sw    16(r1), r6                      ;\
     l.sw    20(r1), r7                      ;\
@@ -87,6 +87,7 @@
 #else
 #define EXCEPTION_ENTRY \
     SAVE_REGS
+    l.sw    8(r1), r4
 #endif
 
 /* clobbers r9 and rd, result will be in rd */
