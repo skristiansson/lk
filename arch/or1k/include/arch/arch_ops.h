@@ -30,7 +30,7 @@ static inline void arch_enable_ints(void)
 {
     uint32_t sr = mfspr(OR1K_SPR_SYS_SR_ADDR);
 
-    sr |= OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK);
+    sr |= OR1K_SPR_SYS_SR_IEE_MASK | OR1K_SPR_SYS_SR_TEE_MASK;
     mtspr(OR1K_SPR_SYS_SR_ADDR, sr);
 }
 
