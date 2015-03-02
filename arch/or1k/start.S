@@ -88,7 +88,9 @@
     l.add   r1, r1, r31
     l.lwz   r31, 0(r0)
 
-    l.ori   r9, r0, 0x8679 /* enable dmmu and immu */
+    /* enable dmmu and immu */
+    l.mfspr r9, r0, OR1K_SPR_SYS_SR_ADDR
+    l.ori   r9, r9, OR1K_SPR_SYS_SR_DME_MASK | OR1K_SPR_SYS_SR_IME_MASK
     l.mtspr r0, r9, OR1K_SPR_SYS_ESR_ADDR(0)
 
     l.movhi r9, hi(.+16)
