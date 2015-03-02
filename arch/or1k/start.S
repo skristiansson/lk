@@ -28,68 +28,6 @@
 #define RED_ZONE            128
 #define EXCEPTION_FRAME     (124 + RED_ZONE)
 
-#define SAVE_REGS \
-    l.addi  r1, r1, -EXCEPTION_FRAME        ;\
-    l.sw    0(r1), r2                       ;\
-    l.sw    4(r1), r3                       ;\
-    /* r4 saved later */                    ;\
-    l.sw    12(r1), r5                      ;\
-    l.sw    16(r1), r6                      ;\
-    l.sw    20(r1), r7                      ;\
-    l.sw    24(r1), r8                      ;\
-    l.sw    28(r1), r9                      ;\
-    l.sw    32(r1), r10                     ;\
-    l.sw    36(r1), r11                     ;\
-    l.sw    40(r1), r12                     ;\
-    l.sw    44(r1), r13                     ;\
-    l.sw    48(r1), r14                     ;\
-    l.sw    52(r1), r15                     ;\
-    l.sw    56(r1), r16                     ;\
-    l.sw    60(r1), r17                     ;\
-    l.sw    64(r1), r18                     ;\
-    l.sw    68(r1), r19                     ;\
-    l.sw    72(r1), r20                     ;\
-    l.sw    76(r1), r21                     ;\
-    l.sw    80(r1), r22                     ;\
-    l.sw    84(r1), r23                     ;\
-    l.sw    88(r1), r24                     ;\
-    l.sw    92(r1), r25                     ;\
-    l.sw    96(r1), r26                     ;\
-    l.sw    100(r1), r27                    ;\
-    l.sw    104(r1), r28                    ;\
-    l.sw    108(r1), r29                    ;\
-    l.sw    112(r1), r30                    ;\
-    l.sw    116(r1), r31                    ;\
-    l.mfspr r3, r0, OR1K_SPR_SYS_EPCR_BASE  ;\
-    l.sw    120(r1), r3                     ;\
-    l.mfspr r3, r0, OR1K_SPR_SYS_ESR_BASE   ;\
-    l.sw    124(r1), r3
-
-#if WITH_KERNEL_VM
-#define EXCEPTION_ENTRY \
-    l.sw    0(r0), r4                       ;\
-    l.sw    4(r0), r9                       ;\
-    get_va_to_pa_offs(r4)                   ;\
-    l.sub   r1, r1, r4                      ;\
-    l.lwz   r9, 4(r0)                       ;\
-    SAVE_REGS                               ;\
-    l.add   r1, r1, r4                      ;\
-    l.lwz   r4, 0(r0)                       ;\
-                                            ;\
-    l.ori   r9, r0, 0x8679 /* enable dmmu and immu */ ;\
-    l.mtspr r0, r9, OR1K_SPR_SYS_ESR_BASE   ;\
-                                            ;\
-    l.movhi r9, hi(.+16)                    ;\
-    l.ori   r9, r9, lo(.+12)                ;\
-    l.mtspr r0, r9, OR1K_SPR_SYS_EPCR_ADDR(0) ;\
-    l.rfe                                   ;\
-    l.sw    8(r1), r4
-#else
-#define EXCEPTION_ENTRY \
-    SAVE_REGS
-    l.sw    8(r1), r4
-#endif
-
 /* clobbers r9 and rd, result will be in rd */
 #define get_va_to_pa_offs(rd) \
     l.movhi rd, hi(.+12)    ;\
@@ -103,6 +41,63 @@
     l.movhi r9, hi(sym)     ;\
     l.ori   r9, r9, lo(sym) ;\
     l.sub   rd, r9, rd
+
+.macro exception_entry
+#if WITH_KERNEL_VM
+    l.sw    0(r0), r31
+    l.sw    4(r0), r9
+    get_va_to_pa_offs(r31)
+    l.sub   r1, r1, r31
+    l.lwz   r9, 4(r0)
+#endif
+    l.addi  r1, r1, -EXCEPTION_FRAME
+    l.sw    0(r1), r2
+    l.sw    4(r1), r3
+    l.sw    8(r1), r4
+    l.sw    12(r1), r5
+    l.sw    16(r1), r6
+    l.sw    20(r1), r7
+    l.sw    24(r1), r8
+    l.sw    28(r1), r9
+    l.sw    32(r1), r10
+    l.sw    36(r1), r11
+    l.sw    40(r1), r12
+    l.sw    44(r1), r13
+    l.sw    48(r1), r14
+    l.sw    52(r1), r15
+    l.sw    56(r1), r16
+    l.sw    60(r1), r17
+    l.sw    64(r1), r18
+    l.sw    68(r1), r19
+    l.sw    72(r1), r20
+    l.sw    76(r1), r21
+    l.sw    80(r1), r22
+    l.sw    84(r1), r23
+    l.sw    88(r1), r24
+    l.sw    92(r1), r25
+    l.sw    96(r1), r26
+    l.sw    100(r1), r27
+    l.sw    104(r1), r28
+    l.sw    108(r1), r29
+    l.sw    112(r1), r30
+    l.mfspr r3, r0, OR1K_SPR_SYS_EPCR_ADDR(0)
+    l.sw    120(r1), r3
+    l.mfspr r3, r0, OR1K_SPR_SYS_ESR_ADDR(0)
+    l.sw    124(r1), r3
+#if WITH_KERNEL_VM
+    l.add   r1, r1, r31
+    l.lwz   r31, 0(r0)
+
+    l.ori   r9, r0, 0x8679 /* enable dmmu and immu */
+    l.mtspr r0, r9, OR1K_SPR_SYS_ESR_ADDR(0)
+
+    l.movhi r9, hi(.+16)
+    l.ori   r9, r9, lo(.+12)
+    l.mtspr r0, r9, OR1K_SPR_SYS_EPCR_ADDR(0)
+    l.rfe
+#endif
+    l.sw    116(r1), r31
+.endm
 
 .section ".vectors", "ax"
 .org 0x100
@@ -123,7 +118,7 @@ _reset:
      l.nop
 
 .org 0x500
-    EXCEPTION_ENTRY
+    exception_entry
     l.jal   or1k_tick
      l.nop
     l.j return_from_exception
@@ -138,7 +133,7 @@ _reset:
      l.nop
 
 .org 0x800
-    EXCEPTION_ENTRY
+    exception_entry
     l.jal   or1k_irq
      l.nop
     l.j return_from_exception
