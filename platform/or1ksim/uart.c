@@ -27,23 +27,23 @@
 #include <platform/or1ksim.h>
 
 struct uart_stat {
-	addr_t base;
-	uint32_t clk_freq;
-	uint shift;
+    addr_t base;
+    uint32_t clk_freq;
+    uint shift;
 };
 
 static struct uart_stat uart[1] = {
-	{ UART1_BASE, UART1_CLOCK_FREQ, 0 },
+    { UART1_BASE, UART1_CLOCK_FREQ, 0 },
 };
 
 static inline void write_uart_reg(int port, uint reg, unsigned char data)
 {
-	*(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift)) = data;
+    *(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift)) = data;
 }
 
 static inline unsigned char read_uart_reg(int port, uint reg)
 {
-	return *(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift));
+    return *(volatile unsigned char *)(uart[port].base + (reg << uart[port].shift));
 }
 #define UART_RHR    0
 #define UART_THR    0
@@ -81,14 +81,14 @@ static inline unsigned char read_uart_reg(int port, uint reg)
 
 #define LCR_8N1     0x03
 
-#define FCR_FIFO_EN     0x01        /* Fifo enable */
-#define FCR_RXSR        0x02        /* Receiver soft reset */
-#define FCR_TXSR        0x04        /* Transmitter soft reset */
+#define FCR_FIFO_EN 0x01        /* Fifo enable */
+#define FCR_RXSR    0x02        /* Receiver soft reset */
+#define FCR_TXSR    0x04        /* Transmitter soft reset */
 
-#define MCR_DTR         0x01
-#define MCR_RTS         0x02
-#define MCR_DMA_EN      0x04
-#define MCR_TX_DFR      0x08
+#define MCR_DTR     0x01
+#define MCR_RTS     0x02
+#define MCR_DMA_EN  0x04
+#define MCR_TX_DFR  0x08
 
 #define LCR_WLS_MSK 0x03        /* character length select mask */
 #define LCR_WLS_5   0x00        /* 5 bit character length */
@@ -112,26 +112,26 @@ static inline unsigned char read_uart_reg(int port, uint reg)
 #define LSR_ERR     0x80        /* Error */
 
 #define LCRVAL LCR_8N1                  /* 8 data, 1 stop, no parity */
-#define MCRVAL (MCR_DTR | MCR_RTS)          /* RTS/DTR */
+#define MCRVAL (MCR_DTR | MCR_RTS)      /* RTS/DTR */
 #define FCRVAL (FCR_FIFO_EN | FCR_RXSR | FCR_TXSR)  /* Clear & enable FIFOs */
 
 void uart_init_port(int port, uint baud)
 {
-	/* clear the tx & rx fifo and disable */
-	uint16_t baud_divisor = (uart[port].clk_freq / 16 / baud);
+    /* clear the tx & rx fifo and disable */
+    uint16_t baud_divisor = (uart[port].clk_freq / 16 / baud);
 
-	write_uart_reg(port, UART_IER, 0);
-	write_uart_reg(port, UART_LCR, LCR_BKSE | LCRVAL); // config mode A
-	write_uart_reg(port, UART_DLL, baud_divisor & 0xff);
-	write_uart_reg(port, UART_DLH, (baud_divisor >> 8) & 0xff);
-	write_uart_reg(port, UART_LCR, LCRVAL); // operational mode
-	write_uart_reg(port, UART_MCR, MCRVAL);
-	write_uart_reg(port, UART_FCR, FCRVAL);
+    write_uart_reg(port, UART_IER, 0);
+    write_uart_reg(port, UART_LCR, LCR_BKSE | LCRVAL); // config mode A
+    write_uart_reg(port, UART_DLL, baud_divisor & 0xff);
+    write_uart_reg(port, UART_DLH, (baud_divisor >> 8) & 0xff);
+    write_uart_reg(port, UART_LCR, LCRVAL); // operational mode
+    write_uart_reg(port, UART_MCR, MCRVAL);
+    write_uart_reg(port, UART_FCR, FCRVAL);
 }
 
 void uart_init_early(void)
 {
-	uart_init_port(DEBUG_UART, 115200);
+    uart_init_port(DEBUG_UART, 115200);
 }
 
 void uart_init(void)
@@ -140,35 +140,35 @@ void uart_init(void)
 
 int uart_putc(int port, char c )
 {
-	while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
-		;
-	write_uart_reg(port, UART_THR, c);
-	return 0;
+    while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
+        ;
+    write_uart_reg(port, UART_THR, c);
+    return 0;
 }
 
 int uart_getc(int port, bool wait)  /* returns -1 if no data available */
 {
-	if (wait) {
-		while (!(read_uart_reg(port, UART_LSR) & (1<<0))) // wait for data to show up in the rx fifo
-			;
-	} else {
-		if (!(read_uart_reg(port, UART_LSR) & (1<<0)))
-			return -1;
-	}
-	return read_uart_reg(port, UART_RHR);
+    if (wait) {
+        while (!(read_uart_reg(port, UART_LSR) & (1<<0))) // wait for data to show up in the rx fifo
+            ;
+    } else {
+        if (!(read_uart_reg(port, UART_LSR) & (1<<0)))
+            return -1;
+    }
+    return read_uart_reg(port, UART_RHR);
 }
 
 void uart_flush_tx(int port)
 {
-	while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
-		;
+    while (!(read_uart_reg(port, UART_LSR) & (1<<6))) // wait for the last char to get out
+        ;
 }
 
 void uart_flush_rx(int port)
 {
-	// empty the rx fifo
-	while (read_uart_reg(port, UART_LSR) & (1<<0)) {
-		volatile char c = read_uart_reg(port, UART_RHR);
-		(void)c;
-	}
+    // empty the rx fifo
+    while (read_uart_reg(port, UART_LSR) & (1<<0)) {
+        volatile char c = read_uart_reg(port, UART_RHR);
+        (void)c;
+    }
 }

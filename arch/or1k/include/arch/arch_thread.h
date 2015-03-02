@@ -25,22 +25,22 @@
 #include <sys/types.h>
 
 struct or1k_context_switch_frame {
-	uint32_t r1; // stack pointer
-	uint32_t r2; // frame pointer
+    uint32_t r1; // stack pointer
+    uint32_t r2; // frame pointer
 
-	uint32_t r9; // link register
+    uint32_t r9; // link register
 
-	/* callee saved */
-	uint32_t r10;
-	uint32_t r14;
-	uint32_t r16;
-	uint32_t r18;
-	uint32_t r20;
-	uint32_t r22;
-	uint32_t r24;
-	uint32_t r26;
-	uint32_t r28;
-	uint32_t r30;
+    /* callee saved */
+    uint32_t r10;
+    uint32_t r14;
+    uint32_t r16;
+    uint32_t r18;
+    uint32_t r20;
+    uint32_t r22;
+    uint32_t r24;
+    uint32_t r26;
+    uint32_t r28;
+    uint32_t r30;
 };
 
 struct arch_thread {
@@ -48,4 +48,4 @@ struct arch_thread {
 };
 
 void or1k_context_switch(struct or1k_context_switch_frame *oldcs,
-    struct or1k_context_switch_frame *newcs);
+                         struct or1k_context_switch_frame *newcs);

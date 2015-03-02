@@ -27,20 +27,20 @@ enum handler_return platform_tick(void);
 
 void or1k_irq(void)
 {
-	inc_critical_section();
+    inc_critical_section();
 
-	if (platform_irq() == INT_RESCHEDULE)
-		thread_preempt();
+    if (platform_irq() == INT_RESCHEDULE)
+        thread_preempt();
 
-	dec_critical_section();
+    dec_critical_section();
 }
 
 void or1k_tick(void)
 {
-	inc_critical_section();
+    inc_critical_section();
 
-	if (platform_tick() == INT_RESCHEDULE)
-		thread_preempt();
+    if (platform_tick() == INT_RESCHEDULE)
+        thread_preempt();
 
-	dec_critical_section();
+    dec_critical_section();
 }
