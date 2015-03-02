@@ -8,7 +8,7 @@ SECTIONS
 
     _start = .;
 
-    /* vector table goes at 0, for qemu target, at least */
+    /* vector table goes at 0 */
     .vectors : AT(0) {
         KEEP(*(.vectors))
     }
@@ -52,9 +52,6 @@ SECTIONS
         *(.rodata .rodata.* .gnu.linkonce.r.*)
 INCLUDE "arch/shared_rodata_sections.ld"
         . = ALIGN(4);
-        _SDATA2_START__ = .;
-        *(.sdata2)
-        _SDATA2_END__ = .;
         __rodata_end = .;
     }
 
@@ -75,36 +72,18 @@ INCLUDE "arch/shared_data_sections.ld"
         *(.got*)
         *(.dynamic)
 
-        /* read-write small data with initial value */
-        _SDATA_START__ = .;
-        *(.sdata)
-        _SDATA_END__ = .;
-
         __data_end = .;
     }
 
 
     /* unintialized data (in same segment as writable data) */
     .bss : ALIGN(4) {
-	KEEP(*(.bss.prebss.*))
-	. = ALIGN(4);
+        KEEP(*(.bss.prebss.*))
+        . = ALIGN(4);
         __bss_start = .;
-
-        /* read only small variables without initial value */
-        _SBSS2_START__ = .;
-        *(.sbss2*)
-        _SBSS2_END__ = .;
-
-        /* read-write small variables without initial value */
-        _sbss_start__ = .;
-        *(.sbss*)
-        _sbss_end__ = .;
-
-        /* regular bss */
         *(.bss .bss.*)
         *(.gnu.linkonce.b.*)
         *(COMMON)
-
         . = ALIGN(4);
         __bss_end = .;
     }
@@ -117,4 +96,3 @@ INCLUDE "arch/shared_data_sections.ld"
     /* Strip unnecessary stuff */
     /DISCARD/ : { *(.comment .note .eh_frame) }
 }
-
