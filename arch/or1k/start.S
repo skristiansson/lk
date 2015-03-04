@@ -26,7 +26,7 @@
 #include <kernel/vm.h>
 
 #define RED_ZONE            128
-#define EXCEPTION_FRAME     (124 + RED_ZONE)
+#define EXCEPTION_FRAME     (128 + RED_ZONE)
 
 /* clobbers r9 and rd, result will be in rd */
 #define get_va_to_pa_offs(rd) \
