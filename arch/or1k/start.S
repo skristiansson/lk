@@ -109,18 +109,34 @@ _reset:
      l.nop
 
 .org 0x200
-    l.jal   unhandled_exception
+bus_error_exception:
+    exception_entry
+    l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+    l.jal   or1k_busfault_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0x300
-    l.jal   unhandled_exception
+data_pagefault_exception:
+    exception_entry
+    l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+    l.jal   or1k_data_pagefault_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0x400
-    l.jal   unhandled_exception
+instruction_pagefault_exception:
+    exception_entry
+    l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+    l.jal   or1k_instruction_pagefault_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0x500
+tick_timer_exception:
     exception_entry
     l.jal   or1k_tick
      l.nop
@@ -128,14 +144,25 @@ _reset:
      l.nop
 
 .org 0x600
-    l.jal   unhandled_exception
+alignment_exception:
+    exception_entry
+    l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+    l.jal   or1k_alignment_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0x700
-    l.jal   unhandled_exception
+illegal_instruction_exception:
+    exception_entry
+    l.mfspr r4, r0, OR1K_SPR_SYS_EEAR_ADDR(0)
+    l.jal   or1k_illegal_instruction_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0x800
+external_interrupt_exception:
     exception_entry
     l.jal   or1k_irq
      l.nop
@@ -143,8 +170,8 @@ _reset:
      l.nop
 
 .org 0x900
+dtlb_miss_exception:
 #if WITH_KERNEL_VM
-dtlb_miss_handler:
     l.sw    0(r0), r3
     l.sw    4(r0), r4
     l.sw    8(r0), r9
@@ -160,7 +187,7 @@ dtlb_miss_handler:
     l.lwz   r3, 0(r3) /* l1 entry */
     l.andi  r9, r3, OR1K_MMU_PG_PRESENT
     l.sfnei r9, OR1K_MMU_PG_PRESENT
-    l.bf    dfault
+    l.bf    dtlb_miss_fault
      l.andi r9, r3, OR1K_MMU_PG_L
 
     l.sfeqi r9, OR1K_MMU_PG_L
@@ -218,13 +245,15 @@ dtlb_miss_handler:
     l.rfe
 #endif /* WITH_KERNEL_VM */
 
-dfault:
-    l.jal   unhandled_exception
-     l.nop
+dtlb_miss_fault:
+    l.lwz   r3, 0(r0)
+    l.lwz   r4, 4(r0)
+    l.j     data_pagefault_exception
+     l.lwz   r9, 8(r0)
 
 .org 0xa00
+itlb_miss_exception:
 #if WITH_KERNEL_VM
-itlb_miss_handler:
     l.sw    0(r0), r3
     l.sw    4(r0), r4
     l.sw    8(r0), r9
@@ -240,7 +269,7 @@ itlb_miss_handler:
 
     l.andi  r9, r3, OR1K_MMU_PG_PRESENT
     l.sfnei r9, OR1K_MMU_PG_PRESENT
-    l.bf    ifault
+    l.bf    itlb_miss_fault
      l.andi r9, r3, OR1K_MMU_PG_L
     l.sfeqi r9, OR1K_MMU_PG_L
     /* l2 index */
@@ -290,24 +319,45 @@ itlb_miss_handler:
     l.rfe
 #endif /* WITH_KERNEL_VM */
 
-ifault:
-    l.jal   unhandled_exception
-     l.nop
+itlb_miss_fault:
+    l.lwz   r3, 0(r0)
+    l.lwz   r4, 4(r0)
+    l.j     instruction_pagefault_exception
+     l.lwz   r9, 8(r0)
 
 .org 0xb00
-    l.jal   unhandled_exception
+range_exception:
+    exception_entry
+    l.ori   r4, r0, 0xb00
+    l.jal   or1k_unhandled_exception
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0xc00
-    l.jal   unhandled_exception
+syscall_exception:
+    exception_entry
+    l.jal   or1k_syscall_handler
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0xd00
-    l.jal   unhandled_exception
+fpu_exception:
+    exception_entry
+    l.ori   r4, r0, 0xd00
+    l.jal   or1k_unhandled_exception
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .org 0xe00
-    l.jal   unhandled_exception
+trap_exception:
+    exception_entry
+    l.ori   r4, r0, 0xe00
+    l.jal   or1k_unhandled_exception
+     l.ori  r3, r1, 0
+    l.j return_from_exception
      l.nop
 
 .section ".text.boot"

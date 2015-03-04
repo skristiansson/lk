@@ -12,7 +12,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/exceptions.c \
 	$(LOCAL_DIR)/thread.c \
 	$(LOCAL_DIR)/cache-ops.c \
-	$(LOCAL_DIR)/mmu.c
+	$(LOCAL_DIR)/mmu.c \
+	$(LOCAL_DIR)/faults.c
 
 # set the default toolchain to or1k elf and set a #define
 ifndef TOOLCHAIN_PREFIX
